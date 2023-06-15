@@ -1,15 +1,14 @@
 import clientPromise from '../lib/mongodb'
 import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
-import { getLatestBuyer, registerTransferListener, postToMongoDB, parseServerResponse, getFromMongoDB } from "../context/EthersContexts"
+import { getLatestBuyer, registerTransferListener, postToMongoDB, parseServerResponse, getTransfersFromMongoDB, getMaxRewardFromMongoDB } from "../context/EthersContexts"
 import { useEffect, useState } from 'react'
-import { Db } from 'mongodb'
+import 'bootstrap/dist/css/bootstrap.css'
+
 type ConnectionStatus = {
   isConnected: boolean,
   latestBuyer: string,
 }
 
-const DBName = "contract_transfer"
-const DBCollection = "transfers"
 
 export const getServerSideProps: GetServerSideProps<
   ConnectionStatus
@@ -23,7 +22,7 @@ export const getServerSideProps: GetServerSideProps<
   } catch (e) {
     console.error(e)
     return {
-      props: { isConnected: false, latestBuyer: "" },
+      props: { isConnected: false, latestBuyer: String("") },
     }
   }
 }
@@ -33,23 +32,43 @@ export default function Home({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   async function transferCallback(data: any) {
     console.log("OK", data)
-    let address = String(data[0])
+    let transactionHash = String(data[0])
     let from = String(data[1])
     let to = String(data[2])
     let value = String(data[3])
 
-    console.log(`1 Reward Transferred! Address: ${address} From: ${from}, To: ${to}, Amount: ${value}`);
-    const response = await postToMongoDB(from, to, value, address)
-    const responseMessage = await parseServerResponse(response)
-    console.log(responseMessage)
+    console.log(`1 Reward Transferred! Address: ${transactionHash} From: ${from}, To: ${to}, Amount: ${value}`);
+    if (isConnected) {
+      try {
+        const response = await postToMongoDB(from, to, value, transactionHash)
+        await parseServerResponse(response)
+      } catch (e) {
+        console.log(e)
+      }
+    }
   }
   const [events, setEvents] = useState<any>([]);
+  const [topRankUser, setTopRankUser] = useState<any>(null);
+  const [hasEvents, setHasEvents] = useState<boolean>(false);
 
   async function getTransferList() {
-    const response = await getFromMongoDB()
-    const responseData = await parseServerResponse(response)
-    console.log(responseData)
+    const response = await getTransfersFromMongoDB()
+    const responseData: Array<any> = await parseServerResponse(response)
+    if (responseData.length > 0) {
+      setHasEvents(true)
+    } else {
+      setHasEvents(false)
+    }
     setEvents(responseData)
+  }
+  async function getMaxTransferList() {
+    const response = await getMaxRewardFromMongoDB()
+    const responseData: Array<any> = await parseServerResponse(response)
+    if (responseData.length > 0) {
+      setTopRankUser(responseData[0])
+    } else {
+      setTopRankUser(null)
+    }
   }
   useEffect(() => {
     registerTransferListener(transferCallback)
@@ -58,33 +77,60 @@ export default function Home({
 
   return (
     <div className="container">
-      {isConnected ? <p>Connected to Mongodb</p>
-        : <p>Not connected to mongodb</p>}
-
-      <p>
-        {latestBuyer}
-      </p>
-      <button onClick={getTransferList}>Click me</button>
-      <table>
-        <thead>
-          <tr>
-            <td> From </td> |
-            <td> TO </td> |
-            <td>TX Hash</td> |
-            <td>value</td> |
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((e: any) => (
-            <tr key={e._id}>
-              <td>{e.from}</td> 
-              <td>{e.to}</td> 
-              <td>{e.address}</td> 
-              <td>{e.value}</td>
+      <div className='card m-2 p-2 w-20'>
+        <div className="card-header">
+          MongoDB Connection Status
+        </div>
+        <div className='card-body'>
+          <p className='card-title'>
+            {isConnected ?  "Connected" : "Not Connected"}
+          </p>
+        </div>
+      </div>
+      
+      <div className='card  m-2 p-2'>
+        <div className="card-header">
+          Latest Buyer
+        </div>
+        <div className='card-body'>
+          <p className='card-title'>Address: {latestBuyer}</p>
+        </div>
+      </div>
+      <div>
+        <button className='btn btn-primary  m-2 p-2' onClick={getTransferList}>Click me For list</button>
+        <button className='btn btn-success  m-2 p-2' onClick={getMaxTransferList}>Click me For Top user</button>
+      </div>
+      {topRankUser ?
+        <div className='card  m-2 p-2'>
+          <div className="card-header">
+            Top Ranked User
+          </div>
+          <div className='card-body'>
+            <p className='card-title'>Address: {topRankUser.userId}</p>
+            <p className='card-text'>Amount: {topRankUser.value}</p>
+          </div>
+        </div>
+        : <></>
+      }
+      {hasEvents ?
+        <table className='table  m-2 p-2'>
+          <thead>
+            <tr>
+              <td scope='col'> User </td>
+              <td scope='col'>value</td>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {events.map((e: any) => (
+              <tr key={e._id}>
+                <td>{e.userId}</td>
+                <td>{e.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        : <></>
+      }
     </div>
   )
 }

@@ -19,22 +19,18 @@ export const getLatestBuyer = async () => {
 export const registerTransferListener = (listener) => {
     contractInstance.events.Transfer({
         filter: { from: contractAddress }, // filter for transfers from the contract
-        fromBlock: 'latest' // start from the latest block
+        fromBlock: 'earliest' // start from the latest block
     })
-    .on('data', (event) => {
-            let address = event.transactionHash
+        .on('data', (event) => {
+            let transactionHash = event.transactionHash
             let { from, to, value } = event.returnValues;
-            console.log("event", address)
-            console.log("event.returnValues", event.returnValues)
-            console.log(`Reward Transferred! From: ${from}, To: ${to}, Amount: ${value}`);
-            
-            if(address){
-                listener([address, from, to , value])
+            if (transactionHash) {
+                listener([transactionHash, from, to, value])
             }
-    })
+        })
 }
 
-export async function postToMongoDB(from, to, value, address) {
+export async function postToMongoDB(from, to, value, transactionHash) {
 
     const response = await fetch('/api/set_transfer', {
         method: 'POST',
@@ -45,15 +41,25 @@ export async function postToMongoDB(from, to, value, address) {
             from: from,
             to: to,
             value: value,
-            address: address
+            transactionHash: transactionHash
         }),
     });
     return response;
 }
-export async function getFromMongoDB() {
+export async function getTransfersFromMongoDB() {
 
-    const response = await fetch('/api/get_transfer', {
+    const response = await fetch('/api/get_transfer?limit=50', {
         method: 'GET',
+    });
+    return response;
+}
+export async function getMaxRewardFromMongoDB() {
+
+    const response = await fetch('/api/get_transfer?limit=1', {
+        method: 'POST',
+        body: JSON.stringify({
+            limit: 1
+        }),
     });
     return response;
 }
@@ -62,7 +68,6 @@ export async function parseServerResponse(response) {
         return "Sorry, I'm not feeling well today. Try again later.";
     }
     const data = await response.json();
-    console.log('data', data);
     if (data.error) {
         return data.error;
     }
