@@ -19,7 +19,7 @@ export const getLatestBuyer = async () => {
 export const registerTransferListener = (listener) => {
     contractInstance.events.Transfer({
         filter: { from: contractAddress }, // filter for transfers from the contract
-        fromBlock: 'earliest' // start from the latest block
+        fromBlock: 'latest' // start from the latest block
     })
         .on('data', (event) => {
             let transactionHash = event.transactionHash
