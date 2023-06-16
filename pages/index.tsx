@@ -3,6 +3,7 @@ import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
 import { getLatestBuyer, registerTransferListener, postToMongoDB, parseServerResponse, getTransfersFromMongoDB, getMaxRewardFromMongoDB } from "../context/EthersContexts"
 import { useEffect, useState } from 'react'
 import 'bootstrap/dist/css/bootstrap.css'
+import { get } from 'http'
 
 type ConnectionStatus = {
   isConnected: boolean
@@ -28,27 +29,6 @@ export const getServerSideProps: GetServerSideProps<
 export default function Home({
   isConnected
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  async function transferCallback(data: any) {
-    console.log("OK", data)
-    let transactionHash = String(data[0])
-    let from = String(data[1])
-    let to = String(data[2])
-    let value = String(data[3])
-    console.log(`1 Reward Transferred! Address: ${transactionHash} From: ${from}, To: ${to}, Amount: ${value}`);
-    setIsLoading(true)
-    const x = await getLatestBuyer()
-    setLatestBuyer(x || "")
-    if (isConnected) {
-      try {
-        const response = await postToMongoDB(from, to, value, transactionHash)
-        await parseServerResponse(response)
-      } catch (e) {
-        console.log(e)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [latestBuyer, setLatestBuyer] = useState<string>("")
   const [events, setEvents] = useState<any>([]);
@@ -85,8 +65,33 @@ export default function Home({
       setTopRankUser(null)
     }
   }
+  async function transferCallback(data: any) {
+    let transactionHash = String(data[0])
+    let from = String(data[1])
+    let to = String(data[2])
+    let value = String(data[3])
+    setIsLoading(true)
+    const x = await getLatestBuyer()
+    setLatestBuyer(x || "")
+    if (isConnected) {
+      try {
+        const response = await postToMongoDB(from, to, value, transactionHash)
+        await parseServerResponse(response)
+      } catch (e) {
+        console.log(e)
+      } finally {
+        setIsLoading(false)
+        getMaxTransferList()
+        getTransferList()
+      }
+    }
+  }
   useEffect(() => {
     getLatestBuyer().then(x => setLatestBuyer(x || ""))
+    if (isConnected) {
+      getTransferList()
+      getMaxTransferList()
+    }
     registerTransferListener(transferCallback)
     // transfer_check_realtime()
   }, []);
@@ -117,10 +122,10 @@ export default function Home({
           <span className="visually-hidden">Loading...</span>
         </div>
         : <></>}
-      <div>
+      {/* <div>
         <button className='btn btn-primary  m-2 p-2' onClick={getTransferList}>Click me For list</button>
         <button className='btn btn-success  m-2 p-2' onClick={getMaxTransferList}>Click me For Top user</button>
-      </div>
+      </div> */}
       {topRankUser ?
         <div className='card  m-2 p-2'>
           <div className="card-header">

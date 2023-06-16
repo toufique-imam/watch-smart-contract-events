@@ -14,13 +14,13 @@ export const getLatestBuyer = async () => {
         let buyer = await contractInstance.methods.latestBuyer().call()
         return String(buyer)
     } catch (e) {
-        console.error("Error:", error);
+        console.error("Error:", e);
     }
 }
 export const registerTransferListener = (listener) => {
     contractInstance.events.Transfer({
         filter: { from: contractAddress }, // filter for transfers from the contract
-        fromBlock: 'earliest' // start from the latest block
+        fromBlock: 'latest' // start from the latest block
     })
         .on('data', (event) => {
             let transactionHash = event.transactionHash
@@ -32,42 +32,62 @@ export const registerTransferListener = (listener) => {
 }
 
 export async function postToMongoDB(from, to, value, transactionHash) {
-    const response = await fetchQueue('/api/set_transfer', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            from: from,
-            to: to,
-            value: value,
-            transactionHash: transactionHash
-        }),
-    });
-    return response;
+    try {
+        const response = await fetchQueue('/api/set_transfer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: from,
+                to: to,
+                value: value,
+                transactionHash: transactionHash
+            }),
+        });
+        return response;
+    } catch (error) {
+        console.error('Error:', error);
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    }
 }
 export async function getTransfersFromMongoDB() {
-    const response = await fetchQueue('/api/get_transfer?limit=50', {
-        method: 'GET',
-    });
-    return response;
+    try {
+        const response = await fetchQueue('/api/get_transfer?limit=50', {
+            method: 'GET',
+        });
+        return response;
+    } catch (error) {
+        console.error('Error:', error);
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    }
 }
 export async function getMaxRewardFromMongoDB() {
-    const response = await fetchQueue('/api/get_transfer?limit=1', {
-        method: 'POST',
-        body: JSON.stringify({
-            limit: 1
-        }),
-    });
-    return response;
+    try {
+        const response = await fetchQueue('/api/get_transfer?limit=1', {
+            method: 'POST',
+            body: JSON.stringify({
+                limit: 1
+            }),
+        });
+        return response;
+    } catch (error) {
+        console.error('Error:', error);
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    }
 }
 export async function parseServerResponse(response) {
-    if (!response.ok) {
+    try {
+        if (!response || !response.ok) {
+            return "Sorry, I'm not feeling well today. Try again later.";
+        }
+        const data = await response.json();
+        if (data.error) {
+            return data.error;
+        }
+        return data.result;
+    } catch (error) {
+        console.error('Error:', error);
         return "Sorry, I'm not feeling well today. Try again later.";
     }
-    const data = await response.json();
-    if (data.error) {
-        return data.error;
-    }
-    return data.result;
 }
