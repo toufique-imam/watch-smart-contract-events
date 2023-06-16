@@ -54,7 +54,14 @@ export default function Home({
   const [events, setEvents] = useState<any>([]);
   const [topRankUser, setTopRankUser] = useState<any>(null);
   const [hasEvents, setHasEvents] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const filteredEvents = events.filter((e: any) =>
+    e._id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
   async function getTransferList() {
     setIsLoading(true)
     const response = await getTransfersFromMongoDB()
@@ -127,22 +134,34 @@ export default function Home({
         : <></>
       }
       {hasEvents ?
-        <table className='table  m-2 p-2'>
-          <thead>
-            <tr>
-              <td scope='col'> to </td>
-              <td scope='col'>value</td>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((e: any) => (
-              <tr key={e._id}>
-                <td>{e._id}</td>
-                <td>{e.value}</td>
+        <div>
+          <div className="input-group mb-3">
+            <input
+              type="text"
+              className="form-control"
+              value={searchTerm}
+              onChange={handleSearch}
+              placeholder="Search by Address"
+              aria-label="Search by Address"
+            />
+          </div>
+          <table className='table  m-2 p-2'>
+            <thead>
+              <tr>
+                <td scope='col'> User </td>
+                <td scope='col'>value</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredEvents.map((e: any) => (
+                <tr key={e._id}>
+                  <td>{e._id}</td>
+                  <td>{e.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         : <></>
       }
     </div>
