@@ -14,21 +14,33 @@ export default async function handler(
     try {
         const data = req.query
         var limit = Number(data.limit)
-        if(!limit){
+        if (!limit) {
             limit = 1
         }
 
         const client = await clientPromise;
         const db = client.db(DBName)
-
         const transfers = await db
-            .collection(RanklistCollection)
-            .find({})
-            .sort({ value: -1 })
+            .collection(TransferCollection)
+            .aggregate([
+                {
+                    $group: {
+                        _id: "$to",
+                        value: { $sum: "$value" },
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $sort: { value: -1 }
+                },
+                {
+                    $limit: limit
+                }
+            ])
             .limit(limit)
             .toArray()
 
-        res.status(200).json({"result" :transfers })
+        res.status(200).json({ "result": transfers })
     } catch (e) {
         console.error(e)
         res.status(503).json(e)

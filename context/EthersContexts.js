@@ -1,5 +1,6 @@
 import { ContractABI } from "../utils/Contract";
 import Web3 from 'web3'
+import fetchQueue from "../utils/queue";
 
 export const contractAddress = "0x179d1ebf5847a83c8754836f7782b901d37e5b04"
 
@@ -11,7 +12,7 @@ export const contractInstance = new web3.eth.Contract(ContractABI, contractAddre
 export const getLatestBuyer = async () => {
     try {
         let buyer = await contractInstance.methods.latestBuyer().call()
-        return buyer
+        return String(buyer)
     } catch (e) {
         console.error("Error:", error);
     }
@@ -19,7 +20,7 @@ export const getLatestBuyer = async () => {
 export const registerTransferListener = (listener) => {
     contractInstance.events.Transfer({
         filter: { from: contractAddress }, // filter for transfers from the contract
-        fromBlock: 'latest' // start from the latest block
+        fromBlock: 'earliest' // start from the latest block
     })
         .on('data', (event) => {
             let transactionHash = event.transactionHash
@@ -31,8 +32,7 @@ export const registerTransferListener = (listener) => {
 }
 
 export async function postToMongoDB(from, to, value, transactionHash) {
-
-    const response = await fetch('/api/set_transfer', {
+    const response = await fetchQueue('/api/set_transfer', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -47,15 +47,13 @@ export async function postToMongoDB(from, to, value, transactionHash) {
     return response;
 }
 export async function getTransfersFromMongoDB() {
-
-    const response = await fetch('/api/get_transfer?limit=50', {
+    const response = await fetchQueue('/api/get_transfer?limit=50', {
         method: 'GET',
     });
     return response;
 }
 export async function getMaxRewardFromMongoDB() {
-
-    const response = await fetch('/api/get_transfer?limit=1', {
+    const response = await fetchQueue('/api/get_transfer?limit=1', {
         method: 'POST',
         body: JSON.stringify({
             limit: 1
