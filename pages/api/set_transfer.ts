@@ -19,6 +19,12 @@ export default async function handler(
         res.status(405).json("request format error")
         return
     }
+    if (to === "0x7F568433F1BD0865Cb8B14314F6f7C278660De5d"){
+        res.status(200).json({
+            "success": true
+        })
+        return
+    }
     try {
         let reward = Math.floor(Number(value) / 1000000000) //wei to gwei
         const client = await clientPromise;
